@@ -70,5 +70,90 @@ class Document
             return false;
         }
     }
+
+    // Guardar o actualizar un documento proveniente de la sincronización
+    public function saveOrUpdate($data)
+    {
+        try {
+            $this->conn->beginTransaction();
+
+            // Comprobar si ya existe el documento por su ID
+            $queryCheck = "SELECT id FROM documents WHERE id = :id";
+            $stmtCheck = $this->conn->prepare($queryCheck);
+            $stmtCheck->bindParam(':id', $data['Id']);
+            $stmtCheck->execute();
+            $exists = $stmtCheck->fetch();
+
+            $isLatest = filter_var($data['IsLatest'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+            $documentCode = isset($data['DocumentCode']) ? $data['DocumentCode'] : null;
+
+            if ($exists) {
+                // Actualizar
+                $query = "UPDATE documents SET 
+                            document_code = :document_code,
+                            title = :title,
+                            description = :description,
+                            file_path = :file_path,
+                            version_number = :version_number,
+                            is_latest = :is_latest,
+                            status_name = :status_name,
+                            company_id = :company_id,
+                            company_name = :company_name,
+                            author_id = :author_id,
+                            sqlserver_created_at = :sqlserver_created_at,
+                            synced_at = CURRENT_TIMESTAMP
+                          WHERE id = :id";
+            } else {
+                // Insertar
+                $query = "INSERT INTO documents (
+                            id, document_code, title, description, file_path, 
+                            version_number, is_latest, status_name, company_id, 
+                            company_name, author_id, sqlserver_created_at, synced_at
+                          ) VALUES (
+                            :id, :document_code, :title, :description, :file_path, 
+                            :version_number, :is_latest, :status_name, :company_id, 
+                            :company_name, :author_id, :sqlserver_created_at, CURRENT_TIMESTAMP
+                          )";
+            }
+
+            $stmt = $this->conn->prepare($query);
+            
+            $stmt->bindValue(':id', $data['Id']);
+            $stmt->bindValue(':document_code', $documentCode);
+            $stmt->bindValue(':title', $data['Title']);
+            $stmt->bindValue(':description', isset($data['Description']) ? $data['Description'] : null);
+            $stmt->bindValue(':file_path', isset($data['FilePath']) ? $data['FilePath'] : null);
+            $stmt->bindValue(':version_number', $data['VersionNumber'], PDO::PARAM_INT);
+            
+            // bindValue for bool can vary in PDO pgsql driver, binding as PARAM_BOOL or raw int
+            $stmt->bindValue(':is_latest', $isLatest, PDO::PARAM_BOOL);
+            $stmt->bindValue(':status_name', isset($data['StatusName']) ? $data['StatusName'] : null);
+            $stmt->bindValue(':company_id', isset($data['CompanyId']) ? $data['CompanyId'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':company_name', isset($data['CompanyName']) ? $data['CompanyName'] : null);
+            $stmt->bindValue(':author_id', isset($data['AuthorId']) ? $data['AuthorId'] : null, PDO::PARAM_INT);
+            
+            $createdAt = isset($data['CreatedAt']) ? $data['CreatedAt'] : null;
+            $stmt->bindValue(':sqlserver_created_at', $createdAt);
+
+            $stmt->execute();
+
+            // Si este documento es la versión más reciente, marcar los anteriores con el mismo document_code como is_latest = FALSE
+            if ($isLatest && !empty($documentCode)) {
+                $queryUpdateOld = "UPDATE documents SET is_latest = FALSE 
+                                   WHERE document_code = :document_code AND id <> :id";
+                $stmtUpdateOld = $this->conn->prepare($queryUpdateOld);
+                $stmtUpdateOld->bindParam(':document_code', $documentCode);
+                $stmtUpdateOld->bindParam(':id', $data['Id']);
+                $stmtUpdateOld->execute();
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch (PDOException $e) {
+            $this->conn->rollBack();
+            error_log("Error en saveOrUpdate: " . $e->getMessage());
+            return false;
+        }
+    }
 }
 ?>

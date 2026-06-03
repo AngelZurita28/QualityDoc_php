@@ -13,6 +13,9 @@ switch ($action) {
     case 'acknowledge':
         $controller->acknowledge();
         break;
+    case 'upload':
+        $controller->upload();
+        break;
     case 'index':
     default:
         $controller->index();

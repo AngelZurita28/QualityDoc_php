@@ -4,7 +4,7 @@ class Database
     private $host = 'localhost';
     private $db = 'qualitydoc';
     private $user = 'postgres';
-    private $pass = '1234'; // <-- Pon tu contraseña
+    private $pass = 'Clave123.'; // <-- Pon tu contraseña
     private $port = '5432';
     public $conn;
 
@@ -18,7 +18,7 @@ class Database
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
             ]);
         } catch (PDOException $exception) {
-            echo "Error de conexión: " . $exception->getMessage();
+            throw $exception;
         }
         return $this->conn;
     }
