@@ -37,8 +37,8 @@ while (-not $isValidPassword) {
     }
 }
 
-$apiLoginUri = Read-Host "`nIngresa la URL de la API de Login (Enter para 'http://host.docker.internal:5000')"
-if ([string]::IsNullOrWhiteSpace($apiLoginUri)) { $apiLoginUri = "http://host.docker.internal:5000" }
+$apiLoginUri = Read-Host "`nIngresa la URL de la API de Login (Enter para 'http://127.0.0.1:5000')"
+if ([string]::IsNullOrWhiteSpace($apiLoginUri)) { $apiLoginUri = "http://127.0.0.1:5000" }
 
 # 2.5. Detectar puerto disponible para PostgreSQL en el host
 Write-Host "`nDetectando puerto libre para PostgreSQL en el host..." -ForegroundColor Green

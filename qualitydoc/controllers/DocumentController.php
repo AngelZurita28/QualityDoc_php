@@ -128,7 +128,7 @@ class DocumentController
         exit;
     }
 
-    // Servir un archivo físico de manera segura al navegador desde su ruta absoluta
+    // Servir un archivo desde la URL remota basada en API_LOGIN_URI
     public function serveFile()
     {
         if (!isset($_GET['id'])) {
@@ -142,18 +142,53 @@ class DocumentController
 
         if ($document && !empty($document['file_path'])) {
             $filePath = $document['file_path'];
-            if (file_exists($filePath)) {
-                $mimeType = mime_content_type($filePath);
+            
+            // Construir la URL remota usando API_LOGIN_URI
+            $apiLoginUri = getenv('API_LOGIN_URI') ?: 'http://host.docker.internal:5000';
+            $apiLoginUri = rtrim($apiLoginUri, '/');
+            $cleanPath = '/' . ltrim($filePath, '/');
+            $remoteUrl = $apiLoginUri . $cleanPath;
+
+            // Obtener el archivo remoto
+            $context = stream_context_create([
+                'http' => [
+                    'ignore_errors' => true,
+                    'timeout' => 15
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ]
+            ]);
+
+            $fileData = @file_get_contents($remoteUrl, false, $context);
+
+            if ($fileData !== false) {
+                // Analizar headers para propagar tipo de contenido y longitud
+                $mimeType = 'application/pdf'; // fallback
+                $contentLength = strlen($fileData);
+                
+                if (isset($http_response_header)) {
+                    foreach ($http_response_header as $header) {
+                        if (stripos($header, 'Content-Type:') === 0) {
+                            $mimeType = trim(substr($header, 13));
+                        }
+                        if (stripos($header, 'Content-Length:') === 0) {
+                            $contentLength = (int)trim(substr($header, 15));
+                        }
+                    }
+                }
+
                 header("Content-Type: " . $mimeType);
-                header("Content-Length: " . filesize($filePath));
+                header("Content-Length: " . $contentLength);
                 header("Cache-Control: no-cache, must-revalidate");
                 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
-                readfile($filePath);
+                echo $fileData;
                 exit;
             }
         }
         header("HTTP/1.1 404 Not Found");
-        echo "Archivo no encontrado en la ruta física.";
+        echo "Archivo no encontrado o no disponible en el servidor remoto.";
         exit;
     }
 }

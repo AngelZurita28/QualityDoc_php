@@ -50,8 +50,8 @@ while [ "$isValidPassword" = false ]; do
     fi
 done
 
-read -p "Ingresa la URL de la API de Login (Enter para 'http://host.docker.internal:5000'): " apiLoginUri
-if [ -z "$apiLoginUri" ]; then apiLoginUri="http://host.docker.internal:5000"; fi
+read -p "Ingresa la URL de la API de Login (Enter para 'http://127.0.0.1:5000'): " apiLoginUri
+if [ -z "$apiLoginUri" ]; then apiLoginUri="http://127.0.0.1:5000"; fi
 
 # 2.5. Detectar puerto disponible para PostgreSQL en el host
 echo -e "\n${GREEN}Detectando puerto libre para PostgreSQL en el host...${NC}"
