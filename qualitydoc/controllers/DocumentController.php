@@ -29,8 +29,12 @@ class DocumentController
         $document = $this->model->getById($id);
 
         if ($document) {
-            // 1. Registramos en la auditoría que se abrió el archivo
-            $this->model->logView($id);
+            // 1. Registramos en la auditoría que se abrió el archivo con los datos del usuario logueado
+            $userId = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 1;
+            $companyName = isset($_SESSION['user']['empresa']) ? $_SESSION['user']['empresa'] : 'Sin Empresa';
+            $area = isset($_SESSION['user']['departamento']) ? $_SESSION['user']['departamento'] : 'Sistemas';
+
+            $this->model->logView($id, $userId, $companyName, $area);
 
             // 2. Sacamos el historial de versiones usando el document_code
             $history = $this->model->getHistory($document['document_code']);
@@ -47,7 +51,12 @@ class DocumentController
     {
         if (isset($_POST['document_id'])) {
             $id = $_POST['document_id'];
-            $this->model->markAsRead($id);
+            
+            $userId = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 1;
+            $companyName = isset($_SESSION['user']['empresa']) ? $_SESSION['user']['empresa'] : 'Sin Empresa';
+            $area = isset($_SESSION['user']['departamento']) ? $_SESSION['user']['departamento'] : 'Sistemas';
+
+            $this->model->markAsRead($id, $userId, $companyName, $area);
 
             // Redirigir de vuelta al visualizador
             header("Location: index.php?action=view&id=" . $id);

@@ -43,27 +43,62 @@ class Document
         return $stmt->fetchAll();
     }
 
-    // Auditoría: Registrar que el usuario 1 abrió el archivo
-    public function logView($document_id)
+    // Obtener el ID numérico de la empresa a partir de su nombre (sincronizada en documents)
+    public function getCompanyIdByName($company_name)
     {
-        // Tu compañero dijo: "prueba con un usuario por defecto que se guarde de que usuario 1 visualizo"
+        if (empty($company_name)) {
+            return null;
+        }
+        $query = "SELECT company_id FROM documents WHERE company_name = :company_name LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':company_name', $company_name);
+        $stmt->execute();
+        $row = $stmt->fetch();
+        return $row ? (int)$row['company_id'] : null;
+    }
+
+    // Auditoría: Registrar que el usuario abrió el archivo
+    public function logView($document_id, $user_id, $company_name, $area)
+    {
+        $company_id = $this->getCompanyIdByName($company_name);
+        if ($company_id === null) {
+            $doc = $this->getById($document_id);
+            if ($doc && isset($doc['company_id'])) {
+                $company_id = (int)$doc['company_id'];
+            }
+        }
+
         $query = "INSERT INTO document_views_audit (document_id, user_id, company_id, area) 
-                  VALUES (:document_id, 1, 1, 'Sistemas')";
+                  VALUES (:document_id, :user_id, :company_id, :area)";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':document_id', $document_id);
+        $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->bindParam(':company_id', $company_id, PDO::PARAM_INT);
+        $stmt->bindParam(':area', $area);
         $stmt->execute();
     }
 
     // Acuse de lectura: El usuario hace clic en "Marcar como leído"
-    public function markAsRead($document_id)
+    public function markAsRead($document_id, $user_id, $company_name, $area)
     {
         try {
+            $company_id = $this->getCompanyIdByName($company_name);
+            if ($company_id === null) {
+                $doc = $this->getById($document_id);
+                if ($doc && isset($doc['company_id'])) {
+                    $company_id = (int)$doc['company_id'];
+                }
+            }
+
             // ON CONFLICT DO NOTHING evita que truene si el usuario le da clic dos veces al mismo archivo
             $query = "INSERT INTO document_read_acknowledgments (document_id, user_id, company_id, area) 
-                      VALUES (:document_id, 1, 1, 'Sistemas') 
+                      VALUES (:document_id, :user_id, :company_id, :area) 
                       ON CONFLICT (document_id, user_id) DO NOTHING";
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':document_id', $document_id);
+            $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $stmt->bindParam(':company_id', $company_id, PDO::PARAM_INT);
+            $stmt->bindParam(':area', $area);
             $stmt->execute();
             return true;
         } catch (PDOException $e) {
@@ -84,7 +119,7 @@ class Document
             $stmtCheck->execute();
             $exists = $stmtCheck->fetch();
 
-            $isLatest = filter_var($data['IsLatest'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+            $isLatest = 1;
             $documentCode = isset($data['DocumentCode']) ? $data['DocumentCode'] : null;
 
             if ($exists) {
@@ -137,9 +172,9 @@ class Document
 
             $stmt->execute();
 
-            // Si este documento es la versión más reciente, marcar los anteriores con el mismo document_code como is_latest = FALSE
-            if ($isLatest && !empty($documentCode)) {
-                $queryUpdateOld = "UPDATE documents SET is_latest = FALSE 
+            // Marcar los anteriores con el mismo document_code como is_latest = FALSE y status_name = 'Obsoleto'
+            if (!empty($documentCode)) {
+                $queryUpdateOld = "UPDATE documents SET is_latest = FALSE, status_name = 'Obsoleto' 
                                    WHERE document_code = :document_code AND id <> :id";
                 $stmtUpdateOld = $this->conn->prepare($queryUpdateOld);
                 $stmtUpdateOld->bindParam(':document_code', $documentCode);

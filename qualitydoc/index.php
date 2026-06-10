@@ -1,30 +1,54 @@
 <?php
-require_once 'controllers/DocumentController.php';
+session_start();
 
-$controller = new DocumentController();
+require_once 'controllers/DocumentController.php';
+require_once 'controllers/AuthController.php';
+
+$documentController = new DocumentController();
+$authController = new AuthController();
 
 // Un enrutador súper sencillo
 $action = isset($_GET['action']) ? $_GET['action'] : 'index';
 
+// Excluir acciones públicas (upload de la API de C# y la pantalla de login/autenticación)
+$publicActions = ['login', 'upload'];
+
+if (!isset($_SESSION['user']) && !in_array($action, $publicActions)) {
+    header("Location: index.php?action=login");
+    exit;
+}
+
+// Redirigir al inicio si ya está logueado e intenta ir a la pantalla de login
+if (isset($_SESSION['user']) && $action === 'login') {
+    header("Location: index.php");
+    exit;
+}
+
 switch ($action) {
+    case 'login':
+        $authController->login();
+        break;
+    case 'logout':
+        $authController->logout();
+        break;
     case 'view':
-        $controller->view();
+        $documentController->view();
         break;
     case 'serve':
-        $controller->serve();
+        $documentController->serve();
         break;
     case 'acknowledge':
-        $controller->acknowledge();
+        $documentController->acknowledge();
         break;
     case 'upload':
-        $controller->upload();
+        $documentController->upload();
         break;
     case 'serve_file':
-        $controller->serveFile();
+        $documentController->serveFile();
         break;
     case 'index':
     default:
-        $controller->index();
+        $documentController->index();
         break;
 }
 ?>

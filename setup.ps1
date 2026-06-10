@@ -37,8 +37,28 @@ while (-not $isValidPassword) {
     }
 }
 
-$apiLoginUri = Read-Host "`nIngresa la URL de la API de Login (Enter para 'http://localhost:5000')"
-if ([string]::IsNullOrWhiteSpace($apiLoginUri)) { $apiLoginUri = "http://localhost:5000" }
+$apiLoginUri = Read-Host "`nIngresa la URL de la API de Login (Enter para 'http://host.docker.internal:5000')"
+if ([string]::IsNullOrWhiteSpace($apiLoginUri)) { $apiLoginUri = "http://host.docker.internal:5000" }
+
+# 2.5. Detectar puerto disponible para PostgreSQL en el host
+Write-Host "`nDetectando puerto libre para PostgreSQL en el host..." -ForegroundColor Green
+$dbHostPort = 5432
+$portInUse = $true
+while ($portInUse) {
+    # Usar .NET para obtener los puertos de escucha TCP activos de manera portable
+    $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+    if ($listeners.Port -contains $dbHostPort) {
+        Write-Host "Advertencia: El puerto $dbHostPort ya esta ocupado en el host." -ForegroundColor Yellow
+        $dbHostPort++
+    } else {
+        $portInUse = $false
+    }
+}
+if ($dbHostPort -eq 5432) {
+    Write-Host "Puerto 5432 libre. Se usara este puerto."
+} else {
+    Write-Host "Se usara el puerto $dbHostPort para exponer PostgreSQL en el host." -ForegroundColor Yellow
+}
 
 # 3. Guardar en .env
 Write-Host "`nGenerando archivo .env..."
@@ -46,6 +66,7 @@ Set-Content -Path ".env" -Value "DB_USER=$dbUser" -Encoding ascii
 Add-Content -Path ".env" -Value "DB_PASSWORD=$dbPasswordPlain" -Encoding ascii
 Add-Content -Path ".env" -Value "DB_NAME=$dbName" -Encoding ascii
 Add-Content -Path ".env" -Value "API_LOGIN_URI=$apiLoginUri" -Encoding ascii
+Add-Content -Path ".env" -Value "DB_PORT_HOST=$dbHostPort" -Encoding ascii
 
 # 4. Limpiar e Iniciar Docker
 Write-Host "`nLimpiando contenedores anteriores..." -ForegroundColor Cyan
@@ -56,7 +77,7 @@ docker compose up -d --build
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  ¡Entorno configurado con exito!" -ForegroundColor Green
 Write-Host "  Aplicacion PHP en: http://localhost:8080" -ForegroundColor Cyan
-Write-Host "  PostgreSQL en el puerto: 5432" -ForegroundColor Cyan
+Write-Host "  PostgreSQL en el puerto: $dbHostPort" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Green
 
 Read-Host "Presiona Enter para salir..."

@@ -334,11 +334,36 @@
             <a href="index.php" class="brand-logo">
                 <i class="fa-solid fa-shield-halved"></i> QualityDoc
             </a>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-light text-dark border p-2 px-3 rounded-pill">
-                    <i class="fa-solid fa-file-circle-check me-1 text-primary"></i> Control Documental
-                </span>
-            </div>
+            <?php if (isset($_SESSION['user'])): 
+                $nombre = $_SESSION['user']['nombre'] ?? 'Usuario';
+                $words = explode(' ', $nombre);
+                $initials = '';
+                if (count($words) >= 2) {
+                    $initials = mb_substr($words[0], 0, 1) . mb_substr($words[1], 0, 1);
+                } else {
+                    $initials = mb_substr($nombre, 0, 2);
+                }
+                $initials = mb_strtoupper($initials);
+            ?>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-none d-md-flex flex-column text-end">
+                        <span class="fw-semibold text-dark small" style="line-height: 1.2;"><?= htmlspecialchars($nombre) ?></span>
+                        <span class="text-muted" style="font-size: 0.75rem;"><?= htmlspecialchars($_SESSION['user']['rol'] ?? 'Sin Rol') ?> • <?= htmlspecialchars($_SESSION['user']['departamento'] ?? 'No Asignado') ?></span>
+                    </div>
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; font-size: 0.9rem; font-family: 'Outfit', sans-serif;" title="<?= htmlspecialchars($_SESSION['user']['empresa'] ?? 'Sin Empresa') ?>">
+                        <?= htmlspecialchars($initials) ?>
+                    </div>
+                    <a href="index.php?action=logout" class="btn btn-outline-danger btn-sm border-0 d-flex align-items-center justify-content-center p-2 rounded-circle" style="width: 38px; height: 38px; transition: var(--transition-smooth);" title="Cerrar Sesión">
+                        <i class="fa-solid fa-power-off"></i>
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="badge bg-light text-dark border p-2 px-3 rounded-pill">
+                        <i class="fa-solid fa-file-circle-check me-1 text-primary"></i> Control Documental
+                    </span>
+                </div>
+            <?php endif; ?>
         </div>
     </header>
 

@@ -50,8 +50,35 @@ while [ "$isValidPassword" = false ]; do
     fi
 done
 
-read -p "Ingresa la URL de la API de Login (Enter para 'http://localhost:5000'): " apiLoginUri
-if [ -z "$apiLoginUri" ]; then apiLoginUri="http://localhost:5000"; fi
+read -p "Ingresa la URL de la API de Login (Enter para 'http://host.docker.internal:5000'): " apiLoginUri
+if [ -z "$apiLoginUri" ]; then apiLoginUri="http://host.docker.internal:5000"; fi
+
+# 2.5. Detectar puerto disponible para PostgreSQL en el host
+echo -e "\n${GREEN}Detectando puerto libre para PostgreSQL en el host...${NC}"
+dbHostPort=5432
+
+port_in_use() {
+    local port=$1
+    if command -v ss &>/dev/null; then
+        ss -tuln | grep -q ":$port "
+    elif command -v netstat &>/dev/null; then
+        netstat -tuln | grep -q ":$port "
+    else
+        # Alternativa con /dev/tcp en bash si esta disponible
+        (echo > /dev/tcp/127.0.0.1/$port) &>/dev/null
+    fi
+}
+
+if port_in_use 5432; then
+    echo -e "${YELLOW}Advertencia: El puerto 5432 ya esta ocupado en el host.${NC}"
+    dbHostPort=5433
+    while port_in_use $dbHostPort; do
+        dbHostPort=$((dbHostPort + 1))
+    done
+    echo -e "${YELLOW}Se usara el puerto $dbHostPort para exponer PostgreSQL en el host.${NC}"
+else
+    echo -e "Puerto 5432 libre. Se usara este puerto."
+fi
 
 # 3. Guardar en .env
 echo -e "\nGenerando archivo .env..."
@@ -60,6 +87,7 @@ DB_USER=$dbUser
 DB_PASSWORD=$dbPasswordPlain
 DB_NAME=$dbName
 API_LOGIN_URI=$apiLoginUri
+DB_PORT_HOST=$dbHostPort
 EOF
 
 # 4. Limpiar e Iniciar Docker
@@ -70,5 +98,5 @@ $DOCKER_COMPOSE_CMD up -d --build
 echo -e "\n${GREEN}========================================${NC}"
 echo -e "${GREEN}  ¡Entorno configurado con exito!       ${NC}"
 echo -e "${CYAN}  Aplicacion PHP en: http://localhost:8080${NC}"
-echo -e "${CYAN}  PostgreSQL en el puerto: 5432        ${NC}"
+echo -e "${CYAN}  PostgreSQL en el puerto: $dbHostPort        ${NC}"
 echo -e "${GREEN}========================================${NC}"
