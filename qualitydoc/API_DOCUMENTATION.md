@@ -135,7 +135,7 @@ Registra o actualiza la información completa de un documento y su versión en l
   | `Description` | `String` | Body (JSON) | No | Descripción del documento. |
   | `FilePath` | `String` | Body (JSON) | No | Ruta relativa del archivo digital. |
   | `VersionNumber` | `Int` | Body (JSON) | **Sí** | Número de versión. |
-  | `IsLatest` | `Boolean` | Body (JSON) | **Sí** | Si es la versión más reciente del documento. |
+  | `IsLatest` | `Boolean` | Body (JSON) | **Sí** | Si es la versión más reciente del documento. *Nota: El servidor siempre forzará este valor a `true` al procesar la subida.* |
   | `StatusName` | `String` | Body (JSON) | No | Nombre del estado actual del documento (ej. 'Aprobado'). |
   | `CompanyId` | `Int` | Body (JSON) | No | Identificador de la compañía. |
   | `CompanyName` | `String` | Body (JSON) | No | Nombre de la compañía dueña del documento. |
@@ -145,7 +145,7 @@ Registra o actualiza la información completa de un documento y su versión en l
 * **Comportamiento Interno:**
   1. Valida que el JSON recibido contenga los campos requeridos mínimos.
   2. Si el registro con la clave `Id` ya existe en la tabla `documents`, actualiza los campos correspondientes. De lo contrario, inserta un registro nuevo.
-  3. Si `IsLatest` es `true`, busca otras versiones con el mismo `document_code` y establece `is_latest = FALSE`.
+  3. **Forzado de Última Versión y Obsolescencia:** El servidor establece la columna `is_latest` del documento entrante en `TRUE` de manera incondicional. Acto seguido, busca el resto de documentos en la base de datos con el mismo `document_code` (e IDs distintos) y los actualiza estableciendo `is_latest = FALSE` y `status_name = 'Obsoleto'`.
   4. Retorna un objeto JSON con la confirmación de éxito.
 
 #### Ejemplo de Petición HTTP:
