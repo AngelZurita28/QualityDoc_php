@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  php_backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: qualitydoc_php
+    environment:
+      - DB_HOST=postgres_db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASSWORD}
+      - API_LOGIN_URI=${API_LOGIN_URI}
+    volumes:
+      - ./qualitydoc:/var/www/html
+    depends_on:
+      - postgres_db
+
+  nginx_server:
+    image: nginx:alpine
+    container_name: qualitydoc_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./qualitydoc:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php_backend
+
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Inyectar el script de inicializacion automatica
+      - ./qualitydoc/db.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
