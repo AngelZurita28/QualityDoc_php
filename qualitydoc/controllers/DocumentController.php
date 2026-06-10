@@ -118,5 +118,34 @@ class DocumentController
         }
         exit;
     }
+
+    // Servir un archivo físico de manera segura al navegador desde su ruta absoluta
+    public function serveFile()
+    {
+        if (!isset($_GET['id'])) {
+            header("HTTP/1.1 400 Bad Request");
+            echo "ID de documento requerido.";
+            exit;
+        }
+
+        $id = $_GET['id'];
+        $document = $this->model->getById($id);
+
+        if ($document && !empty($document['file_path'])) {
+            $filePath = $document['file_path'];
+            if (file_exists($filePath)) {
+                $mimeType = mime_content_type($filePath);
+                header("Content-Type: " . $mimeType);
+                header("Content-Length: " . filesize($filePath));
+                header("Cache-Control: no-cache, must-revalidate");
+                header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+                readfile($filePath);
+                exit;
+            }
+        }
+        header("HTTP/1.1 404 Not Found");
+        echo "Archivo no encontrado en la ruta física.";
+        exit;
+    }
 }
 ?>

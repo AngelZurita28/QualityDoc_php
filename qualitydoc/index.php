@@ -10,11 +10,17 @@ switch ($action) {
     case 'view':
         $controller->view();
         break;
+    case 'serve':
+        $controller->serve();
+        break;
     case 'acknowledge':
         $controller->acknowledge();
         break;
     case 'upload':
         $controller->upload();
+        break;
+    case 'serve_file':
+        $controller->serveFile();
         break;
     case 'index':
     default:
