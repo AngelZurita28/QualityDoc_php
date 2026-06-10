@@ -28,6 +28,7 @@ CREATE TABLE document_views_audit (
     
     -- Datos del usuario obtenidos de la API (sin tener tabla 'users')
     user_id INT NOT NULL,                  
+    user_name VARCHAR(100),
     company_id INT,                        -- Compañía a la que pertenece el usuario
     area VARCHAR(100),                     -- Área a la que pertenece el usuario
     
@@ -47,6 +48,7 @@ CREATE TABLE document_read_acknowledgments (
     
     -- Datos del usuario obtenidos de la API
     user_id INT NOT NULL,
+    user_name VARCHAR(100),
     company_id INT,
     area VARCHAR(100),
     

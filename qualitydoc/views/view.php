@@ -346,6 +346,11 @@
                 $initials = mb_strtoupper($initials);
             ?>
                 <div class="d-flex align-items-center gap-3">
+                    <?php if (isset($_SESSION['user']['rol']) && $_SESSION['user']['rol'] === 'Admin'): ?>
+                        <a href="index.php?action=audit" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="font-weight: 600; font-size: 0.85rem; transition: var(--transition-smooth);">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
+                        </a>
+                    <?php endif; ?>
                     <div class="d-none d-md-flex flex-column text-end">
                         <span class="fw-semibold text-dark small" style="line-height: 1.2;"><?= htmlspecialchars($nombre) ?></span>
                         <span class="text-muted" style="font-size: 0.75rem;"><?= htmlspecialchars($_SESSION['user']['rol'] ?? 'Sin Rol') ?> • <?= htmlspecialchars($_SESSION['user']['departamento'] ?? 'No Asignado') ?></span>
@@ -421,19 +426,28 @@
             <div class="col-lg-4">
                 
                 <!-- Acknowledge Card -->
-                <div class="sidebar-card ack-card">
-                    <h5 class="mb-2">Confirmación de Lectura</h5>
-                    <p class="text-muted small mb-3">
-                        Al presionar este botón, se registrará de forma oficial que has leído, comprendido y aceptado el contenido de esta versión específica del documento.
-                    </p>
+                <?php if (isset($hasAcknowledged) && $hasAcknowledged): ?>
+                    <div class="sidebar-card ack-card" style="background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%); border-color: #a7f3d0;">
+                        <h5 class="mb-2 text-success"><i class="fa-solid fa-circle-check"></i> Lectura Confirmada</h5>
+                        <p class="text-muted small mb-0">
+                            Ya has confirmado que leíste y comprendiste este documento de manera oficial.
+                        </p>
+                    </div>
+                <?php else: ?>
+                    <div class="sidebar-card ack-card">
+                        <h5 class="mb-2">Confirmación de Lectura</h5>
+                        <p class="text-muted small mb-3">
+                            Al presionar este botón, se registrará de forma oficial que has leído, comprendido y aceptado el contenido de esta versión específica del documento.
+                        </p>
 
-                    <form method="POST" action="index.php?action=acknowledge">
-                        <input type="hidden" name="document_id" value="<?= htmlspecialchars($document['id']) ?>">
-                        <button type="submit" class="btn-ack">
-                            <i class="fa-solid fa-square-check"></i> He leído y comprendido
-                        </button>
-                    </form>
-                </div>
+                        <form method="POST" action="index.php?action=acknowledge">
+                            <input type="hidden" name="document_id" value="<?= htmlspecialchars($document['id']) ?>">
+                            <button type="submit" class="btn-ack">
+                                <i class="fa-solid fa-square-check"></i> He leído y comprendido
+                            </button>
+                        </form>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Document Details Card -->
                 <div class="sidebar-card">

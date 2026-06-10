@@ -31,15 +31,19 @@ class DocumentController
         if ($document) {
             // 1. Registramos en la auditoría que se abrió el archivo con los datos del usuario logueado
             $userId = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 1;
+            $userName = isset($_SESSION['user']['nombre']) ? $_SESSION['user']['nombre'] : 'Usuario Test';
             $companyName = isset($_SESSION['user']['empresa']) ? $_SESSION['user']['empresa'] : 'Sin Empresa';
             $area = isset($_SESSION['user']['departamento']) ? $_SESSION['user']['departamento'] : 'Sistemas';
 
-            $this->model->logView($id, $userId, $companyName, $area);
+            $this->model->logView($id, $userId, $userName, $companyName, $area);
 
             // 2. Sacamos el historial de versiones usando el document_code
             $history = $this->model->getHistory($document['document_code']);
 
-            // 3. Cargamos la vista del visualizador
+            // 3. Comprobar si el usuario ya dio acuse de lectura
+            $hasAcknowledged = $this->model->hasUserAcknowledged($id, $userId);
+
+            // 4. Cargamos la vista del visualizador
             require_once 'views/view.php';
         } else {
             echo "Documento no encontrado.";
@@ -53,10 +57,11 @@ class DocumentController
             $id = $_POST['document_id'];
             
             $userId = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 1;
+            $userName = isset($_SESSION['user']['nombre']) ? $_SESSION['user']['nombre'] : 'Usuario Test';
             $companyName = isset($_SESSION['user']['empresa']) ? $_SESSION['user']['empresa'] : 'Sin Empresa';
             $area = isset($_SESSION['user']['departamento']) ? $_SESSION['user']['departamento'] : 'Sistemas';
 
-            $this->model->markAsRead($id, $userId, $companyName, $area);
+            $this->model->markAsRead($id, $userId, $userName, $companyName, $area);
 
             // Redirigir de vuelta al visualizador
             header("Location: index.php?action=view&id=" . $id);
@@ -190,6 +195,22 @@ class DocumentController
         header("HTTP/1.1 404 Not Found");
         echo "Archivo no encontrado o no disponible en el servidor remoto.";
         exit;
+    }
+
+    // Acción de auditoría / bitácora para administradores
+    public function audit()
+    {
+        // Solo accesible para rol de 'Admin'
+        if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'Admin') {
+            header("HTTP/1.1 403 Forbidden");
+            echo "Acceso denegado. Se requiere el rol de Admin.";
+            exit;
+        }
+
+        $viewLogs = $this->model->getViewAuditLogs();
+        $ackLogs = $this->model->getReadAcknowledgmentLogs();
+
+        require_once 'views/audit.php';
     }
 }
 ?>

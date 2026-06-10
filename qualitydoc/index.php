@@ -40,6 +40,9 @@ switch ($action) {
     case 'acknowledge':
         $documentController->acknowledge();
         break;
+    case 'audit':
+        $documentController->audit();
+        break;
     case 'upload':
         $documentController->upload();
         break;

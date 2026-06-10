@@ -296,6 +296,11 @@
                 $initials = mb_strtoupper($initials);
             ?>
                 <div class="d-flex align-items-center gap-3">
+                    <?php if (isset($_SESSION['user']['rol']) && $_SESSION['user']['rol'] === 'Admin'): ?>
+                        <a href="index.php?action=audit" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="font-weight: 600; font-size: 0.85rem; transition: var(--transition-smooth);">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
+                        </a>
+                    <?php endif; ?>
                     <div class="d-none d-md-flex flex-column text-end">
                         <span class="fw-semibold text-dark small" style="line-height: 1.2;"><?= htmlspecialchars($nombre) ?></span>
                         <span class="text-muted" style="font-size: 0.75rem;"><?= htmlspecialchars($_SESSION['user']['rol'] ?? 'Sin Rol') ?> • <?= htmlspecialchars($_SESSION['user']['departamento'] ?? 'No Asignado') ?></span>

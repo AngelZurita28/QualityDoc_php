@@ -58,7 +58,7 @@ class Document
     }
 
     // Auditoría: Registrar que el usuario abrió el archivo
-    public function logView($document_id, $user_id, $company_name, $area)
+    public function logView($document_id, $user_id, $user_name, $company_name, $area)
     {
         $company_id = $this->getCompanyIdByName($company_name);
         if ($company_id === null) {
@@ -68,18 +68,19 @@ class Document
             }
         }
 
-        $query = "INSERT INTO document_views_audit (document_id, user_id, company_id, area) 
-                  VALUES (:document_id, :user_id, :company_id, :area)";
+        $query = "INSERT INTO document_views_audit (document_id, user_id, user_name, company_id, area) 
+                  VALUES (:document_id, :user_id, :user_name, :company_id, :area)";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':document_id', $document_id);
         $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->bindParam(':user_name', $user_name);
         $stmt->bindParam(':company_id', $company_id, PDO::PARAM_INT);
         $stmt->bindParam(':area', $area);
         $stmt->execute();
     }
 
     // Acuse de lectura: El usuario hace clic en "Marcar como leído"
-    public function markAsRead($document_id, $user_id, $company_name, $area)
+    public function markAsRead($document_id, $user_id, $user_name, $company_name, $area)
     {
         try {
             $company_id = $this->getCompanyIdByName($company_name);
@@ -91,12 +92,13 @@ class Document
             }
 
             // ON CONFLICT DO NOTHING evita que truene si el usuario le da clic dos veces al mismo archivo
-            $query = "INSERT INTO document_read_acknowledgments (document_id, user_id, company_id, area) 
-                      VALUES (:document_id, :user_id, :company_id, :area) 
+            $query = "INSERT INTO document_read_acknowledgments (document_id, user_id, user_name, company_id, area) 
+                      VALUES (:document_id, :user_id, :user_name, :company_id, :area) 
                       ON CONFLICT (document_id, user_id) DO NOTHING";
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':document_id', $document_id);
             $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $stmt->bindParam(':user_name', $user_name);
             $stmt->bindParam(':company_id', $company_id, PDO::PARAM_INT);
             $stmt->bindParam(':area', $area);
             $stmt->execute();
@@ -104,6 +106,18 @@ class Document
         } catch (PDOException $e) {
             return false;
         }
+    }
+
+    // Comprobar si el usuario ya confirmó la lectura de este documento
+    public function hasUserAcknowledged($document_id, $user_id)
+    {
+        $query = "SELECT COUNT(*) FROM document_read_acknowledgments 
+                  WHERE document_id = :document_id AND user_id = :user_id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':document_id', $document_id);
+        $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchColumn() > 0;
     }
 
     // Guardar o actualizar un documento proveniente de la sincronización
@@ -189,6 +203,32 @@ class Document
             error_log("Error en saveOrUpdate: " . $e->getMessage());
             return false;
         }
+    }
+
+    // Obtener la bitácora de visualizaciones completa
+    public function getViewAuditLogs()
+    {
+        $query = "SELECT a.id, a.user_id, a.user_name, a.company_id, a.area, a.viewed_at,
+                         d.document_code, d.title, d.version_number
+                  FROM document_views_audit a
+                  JOIN documents d ON a.document_id = d.id
+                  ORDER BY a.viewed_at DESC";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    // Obtener el listado de acuses de lectura registrados
+    public function getReadAcknowledgmentLogs()
+    {
+        $query = "SELECT r.id, r.user_id, r.user_name, r.company_id, r.area, r.acknowledged_at,
+                         d.document_code, d.title, d.version_number
+                  FROM document_read_acknowledgments r
+                  JOIN documents d ON r.document_id = d.id
+                  ORDER BY r.acknowledged_at DESC";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        return $stmt->fetchAll();
     }
 }
 ?>
