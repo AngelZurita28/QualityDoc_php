@@ -273,6 +273,152 @@
         .animated-entry {
             animation: fadeIn 0.5s ease forwards;
         }
+
+        /* Search Switch and Loader Styling */
+        .search-mode-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: var(--transition-smooth);
+        }
+        
+        .search-mode-switch:hover {
+            color: var(--text-main);
+        }
+
+        .search-mode-switch input {
+            display: none;
+        }
+
+        .switch-slider {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+            background-color: #cbd5e1;
+            border-radius: 20px;
+            transition: var(--transition-smooth);
+        }
+
+        .switch-slider::before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: var(--transition-smooth);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        .search-mode-switch input:checked + .switch-slider {
+            background: var(--primary-gradient);
+        }
+
+        .search-mode-switch input:checked + .switch-slider::before {
+            transform: translateX(16px);
+        }
+
+        .search-tag-pill {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 4px 10px;
+            background-color: #f1f5f9;
+            color: var(--text-muted);
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition-smooth);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .search-tag-pill i {
+            font-size: 0.65rem;
+            color: var(--primary);
+        }
+
+        .match-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 8px;
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .matched-fields-container {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .matched-field-pill {
+            background-color: #f8fafc;
+            border: 1px dashed var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* Pulse loader bar */
+        .search-loader-bar {
+            height: 3px;
+            width: 0%;
+            background: var(--primary-gradient);
+            border-radius: 3px;
+            margin-top: 8px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-loader-bar.loading {
+            width: 100%;
+            animation: pulse-loader 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-loader {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .api-badge {
+            font-size: 0.7rem;
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .api-badge.deep {
+            background-color: #faf5ff;
+            color: #7e22ce;
+            border: 1px solid #e9d5ff;
+        }
+
+        .api-badge.offline {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
     </style>
 </head>
 
@@ -336,8 +482,25 @@
             <div class="row align-items-center g-3">
                 <div class="col-md-8">
                     <div class="search-input-wrapper">
-                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <i class="fa-solid fa-magnifying-glass" id="searchIcon"></i>
                         <input type="text" id="documentSearch" class="form-control search-control" placeholder="Buscar documentos por código, título o descripción...">
+                    </div>
+                    <div class="search-loader-bar" id="searchLoaderBar"></div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <label class="search-mode-switch">
+                                <input type="checkbox" id="searchModeToggle">
+                                <span class="switch-slider"></span>
+                                <span>Búsqueda profunda (Deep Search)</span>
+                            </label>
+                            <span id="searchStatusBadge" style="display: none;"></span>
+                        </div>
+                        <div id="searchTagsTitle" class="text-muted small" style="display: none; font-weight: 500;">
+                            Palabras clave analizadas:
+                        </div>
+                    </div>
+                    <div id="searchTagsContainer" class="mt-2 d-flex flex-wrap gap-1" style="display: none;">
+                        <!-- las etiquetas dinámicas de la API irán aquí -->
                     </div>
                 </div>
                 <div class="col-md-4 text-md-end">
@@ -440,41 +603,320 @@
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Filtro de Búsqueda Dinámico en Cliente -->
+    <!-- Búsqueda Inteligente mediante API Node/MongoDB -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('documentSearch');
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    const filter = this.value.toLowerCase().trim();
-                    const rows = document.querySelectorAll('.doc-row');
-                    const noResultsRow = document.getElementById('noResultsRow');
-                    const noDocsRow = document.getElementById('noDocsRow');
-                    const counter = document.getElementById('docCounter');
+            const modeToggle = document.getElementById('searchModeToggle');
+            const loaderBar = document.getElementById('searchLoaderBar');
+            const tagsContainer = document.getElementById('searchTagsContainer');
+            const tagsTitle = document.getElementById('searchTagsTitle');
+            const statusBadge = document.getElementById('searchStatusBadge');
+            const counter = document.getElementById('docCounter');
+            const tableBody = document.querySelector('#documentsTable tbody');
+            const searchIcon = document.getElementById('searchIcon');
+            
+            // Guardar las filas originales cargadas por PHP desde PostgreSQL
+            const originalRows = Array.from(tableBody.querySelectorAll('.doc-row'));
+            const originalNoDocsRow = document.getElementById('noDocsRow');
+            const originalCounterText = counter ? counter.textContent.trim() : '';
+            
+            const noDocsRowHTML = `
+                <tr id="noDocsRow">
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fa-regular fa-folder-open empty-state-icon"></i>
+                            <h5>No hay documentos disponibles</h5>
+                            <p class="text-muted">No se encontraron documentos vigentes o sincronizados en la base de datos.</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            const noResultsRowHTML = `
+                <tr id="noResultsRow">
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-magnifying-glass empty-state-icon"></i>
+                            <h5>Sin coincidencias</h5>
+                            <p class="text-muted">No encontramos documentos que coincidan con tu criterio de búsqueda en MongoDB.</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            let isApiAvailable = true; // Variable para saber si la API responde
+            let debounceTimer;
+
+            // Función Debounce para limitar peticiones consecutivas
+            function debounce(func, delay) {
+                return function(...args) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => func.apply(this, args), delay);
+                };
+            }
+
+            // Modo de filtrado local en caso de desconexión del backend Node
+            function performLocalFilter(filterText) {
+                let visibleCount = 0;
+                const filter = filterText.toLowerCase().trim();
+                
+                originalRows.forEach(row => {
+                    const code = row.querySelector('.document-code').textContent.toLowerCase();
+                    const title = row.querySelector('.text-title-search').textContent.toLowerCase();
+                    const desc = row.querySelector('.text-desc-search').textContent.toLowerCase();
                     
-                    let visibleCount = 0;
-                    
-                    rows.forEach(row => {
-                        const code = row.querySelector('.document-code').textContent.toLowerCase();
-                        const title = row.querySelector('.text-title-search').textContent.toLowerCase();
-                        const desc = row.querySelector('.text-desc-search').textContent.toLowerCase();
-                        
-                        if (code.includes(filter) || title.includes(filter) || desc.includes(filter)) {
-                            row.style.display = '';
-                            visibleCount++;
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
-                    
-                    if (visibleCount === 0 && rows.length > 0) {
-                        noResultsRow.style.display = '';
+                    if (code.includes(filter) || title.includes(filter) || desc.includes(filter)) {
+                        row.style.display = '';
+                        visibleCount++;
                     } else {
-                        noResultsRow.style.display = 'none';
+                        row.style.display = 'none';
                     }
+                });
+
+                // Limpiar etiquetas de la API dado que es búsqueda local
+                tagsContainer.style.display = 'none';
+                tagsTitle.style.display = 'none';
+                
+                // Mostrar/ocultar fila de sin resultados
+                const localNoResults = document.getElementById('noResultsRow');
+                if (visibleCount === 0 && originalRows.length > 0) {
+                    if (localNoResults) {
+                        localNoResults.style.display = '';
+                    } else {
+                        tableBody.insertAdjacentHTML('beforeend', noResultsRowHTML);
+                    }
+                } else if (localNoResults) {
+                    localNoResults.style.display = 'none';
+                }
+
+                if (counter) {
+                    counter.textContent = `Mostrando ${visibleCount} de ${originalRows.length} documentos vigentes (Filtro Local)`;
+                }
+            }
+
+            // Restaurar estado inicial de la tabla
+            function restoreInitialTable() {
+                tableBody.innerHTML = '';
+                
+                if (originalRows.length > 0) {
+                    originalRows.forEach(row => {
+                        row.style.display = '';
+                        tableBody.appendChild(row);
+                    });
+                } else if (originalNoDocsRow) {
+                    tableBody.appendChild(originalNoDocsRow);
+                } else {
+                    tableBody.insertAdjacentHTML('beforeend', noDocsRowHTML);
+                }
+
+                tagsContainer.style.display = 'none';
+                tagsTitle.style.display = 'none';
+                statusBadge.style.display = 'none';
+                loaderBar.classList.remove('loading');
+                if (counter) counter.textContent = originalCounterText;
+            }
+
+            // Renderizar los resultados asíncronos en la tabla
+            function renderResults(data, searchTags, mode) {
+                tableBody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tableBody.insertAdjacentHTML('beforeend', noResultsRowHTML);
+                    if (counter) counter.textContent = `0 coincidencias (MongoDB)`;
+                    return;
+                }
+
+                data.forEach(doc => {
+                    // Mapear el estado a clases de badge existentes
+                    const statusStr = (doc.statusId || doc.lifecycleStatus || '').toLowerCase();
+                    let statusClass = 'status-default';
+                    let statusLabel = doc.statusId || doc.lifecycleStatus || 'Desconocido';
                     
-                    if (counter) {
-                        counter.textContent = `Mostrando ${visibleCount} de ${rows.length} documentos vigentes`;
+                    if (statusStr.includes('aprobado') || statusStr === 'active' || statusStr === 'activo') {
+                        statusClass = 'status-aprobado';
+                        statusLabel = 'Aprobado';
+                    } else if (statusStr.includes('publicado')) {
+                        statusClass = 'status-publicado';
+                        statusLabel = 'Publicado';
+                    } else if (statusStr.includes('pendiente')) {
+                        statusClass = 'status-pendiente';
+                        statusLabel = 'Pendiente';
+                    } else if (statusStr.includes('obsoleto') || statusStr === 'obsolete') {
+                        statusClass = 'status-obsoleto';
+                        statusLabel = 'Obsoleto';
+                    }
+
+                    // Badge de relevancia (matchCount)
+                    const matchCount = doc._matchCount || 0;
+                    const relevanceBadge = matchCount > 0 
+                        ? `<span class="match-badge ms-2" title="Relevancia en etiquetas de búsqueda"><i class="fa-solid fa-star"></i> ${matchCount}</span>` 
+                        : '';
+
+                    // Mostrar campos coincidentes si es Búsqueda Profunda
+                    let matchedFieldsHTML = '';
+                    if (mode === 'deep' && doc._matchedFields && doc._matchedFields.length > 0) {
+                        const fieldsList = doc._matchedFields.map(f => `<span class="matched-field-pill">${f}</span>`).join('');
+                        matchedFieldsHTML = `
+                            <div class="matched-fields-container">
+                                <span class="small text-muted me-1">Coincidencia en:</span>
+                                ${fieldsList}
+                            </div>
+                        `;
+                    }
+
+                    const rowHTML = `
+                        <tr class="doc-row animated-entry">
+                            <td>
+                                <span class="document-code">${escapeHTML(doc.documentCode || 'S/C')}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="fw-semibold text-slate-800 text-title-search">${escapeHTML(doc.title)}</div>
+                                    ${relevanceBadge}
+                                </div>
+                                <div class="text-muted small mt-1 text-desc-search">${escapeHTML(doc.description || 'Sin descripción.')}</div>
+                                ${matchedFieldsHTML}
+                            </td>
+                            <td>
+                                <span class="version-tag">V-${escapeHTML(doc.versionNumber || '1')}</span>
+                            </td>
+                            <td>
+                                <span class="status-badge ${statusClass}">
+                                    <i class="fa-solid fa-circle-dot" style="font-size: 0.5rem"></i>
+                                    ${escapeHTML(statusLabel)}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a href="index.php?action=view&id=${escapeHTML(doc.id)}" class="btn-action">
+                                    <span>Visualizar</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML('beforeend', rowHTML);
+                });
+
+                if (counter) {
+                    counter.textContent = `Mostrando ${data.length} de ${originalRows.length} documentos vigentes`;
+                }
+            }
+
+            // Renderizar etiquetas devueltas por la API
+            function renderSearchTags(tags) {
+                if (!tags || tags.length === 0) {
+                    tagsContainer.style.display = 'none';
+                    tagsTitle.style.display = 'none';
+                    return;
+                }
+                
+                tagsContainer.innerHTML = tags.map(tag => `
+                    <span class="search-tag-pill">
+                        <i class="fa-solid fa-tag"></i> ${escapeHTML(tag)}
+                    </span>
+                `).join('');
+                
+                tagsContainer.style.display = '';
+                tagsTitle.style.display = '';
+            }
+
+            function escapeHTML(str) {
+                if (str === null || str === undefined) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            // Consulta AJAX a la API
+            async function performSearch(query, isDeep) {
+                if (!query.trim()) {
+                    restoreInitialTable();
+                    return;
+                }
+
+                loaderBar.classList.add('loading');
+                if (searchIcon) {
+                    searchIcon.className = 'fa-solid fa-spinner fa-spin';
+                }
+
+                const searchMode = isDeep ? 'deepsearch' : 'search';
+                const apiUrl = `http://localhost:3000/api/documents/${searchMode}?q=${encodeURIComponent(query)}`;
+
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+                    
+                    const response = await fetch(apiUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        isApiAvailable = true; // Sigue activa
+                        
+                        // Actualizar insignia de estado de API
+                        statusBadge.className = isDeep ? 'api-badge deep' : 'api-badge';
+                        statusBadge.innerHTML = isDeep 
+                            ? `<i class="fa-solid fa-brain"></i> MongoDB Deep` 
+                            : `<i class="fa-solid fa-bolt"></i> MongoDB Tag`;
+                        statusBadge.style.display = '';
+
+                        renderResults(result.data || [], result.searchTags || [], isDeep ? 'deep' : 'standard');
+                        renderSearchTags(result.searchTags || []);
+                    } else {
+                        throw new Error(result.message || 'Error en respuesta');
+                    }
+                } catch (error) {
+                    console.warn('API de búsqueda inaccesible, activando fallback local:', error.message);
+                    isApiAvailable = false;
+                    
+                    statusBadge.className = 'api-badge offline';
+                    statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Modo Offline`;
+                    statusBadge.style.display = '';
+                    
+                    performLocalFilter(query);
+                } finally {
+                    loaderBar.classList.remove('loading');
+                    if (searchIcon) {
+                        searchIcon.className = 'fa-solid fa-magnifying-glass';
+                    }
+                }
+            }
+
+            // Event Listeners
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(function() {
+                    const q = this.value;
+                    const isDeep = modeToggle ? modeToggle.checked : false;
+                    
+                    if (isApiAvailable) {
+                        performSearch(q, isDeep);
+                    } else {
+                        if (!q.trim()) {
+                            restoreInitialTable();
+                        } else {
+                            performLocalFilter(q);
+                            statusBadge.className = 'api-badge offline';
+                            statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Modo Offline`;
+                            statusBadge.style.display = '';
+                        }
+                    }
+                }, 300));
+            }
+
+            if (modeToggle) {
+                modeToggle.addEventListener('change', function() {
+                    const q = searchInput ? searchInput.value : '';
+                    if (q.trim()) {
+                        performSearch(q, this.checked);
                     }
                 });
             }
